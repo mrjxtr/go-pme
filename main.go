@@ -17,6 +17,7 @@ type Endpoint struct {
 	Params map[string]string `json:"params,omitempty"`
 }
 
+// poke makes a request to the endpoint with the specified method and logs the result
 func (ep *Endpoint) poke() error {
 	var resp *http.Response
 
@@ -50,14 +51,21 @@ func (ep *Endpoint) poke() error {
 	return nil
 }
 
-func loadEndpointsJSON() ([]Endpoint, error) {
-	file, err := os.ReadFile("endpoints.json")
+// loadEndpointsJSON loads the endpoints from a specified JSON file
+// if no filename is provided, it will default to "endpoints.json"
+func loadEndpointsJSON(filename ...string) ([]Endpoint, error) {
+	jsonFile := "endpoints.json"
+	if len(filename) > 0 && filename[0] != "" {
+		jsonFile = filename[0]
+	}
+
+	data, err := os.ReadFile(jsonFile)
 	if err != nil {
 		return nil, err
 	}
 
 	var endpoints []Endpoint
-	if err := json.Unmarshal(file, &endpoints); err != nil {
+	if err := json.Unmarshal(data, &endpoints); err != nil {
 		return nil, err
 	}
 
