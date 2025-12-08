@@ -1,10 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
-	"os"
 	"sync"
 	"time"
 )
@@ -15,15 +15,14 @@ type Endpoint struct {
 	Params map[string]string
 }
 
-func (ep *Endpoint) poke() {
+func (ep *Endpoint) poke() error {
 	var resp *http.Response
 
 	switch ep.Method {
 	case "GET":
 		r, err := http.Get(ep.URL)
 		if err != nil {
-			slog.Error("GET request error", "endpoint", ep.URL, "error", err)
-			os.Exit(1)
+			return fmt.Errorf("GET request error for %s: %w", ep.URL, err)
 		}
 		resp = r
 	case "POST":
@@ -32,8 +31,7 @@ func (ep *Endpoint) poke() {
 
 		r, err := http.Post(ep.URL, "application/json", body)
 		if err != nil {
-			slog.Error("POST request error", "endpoint", ep.URL, "error", err)
-			os.Exit(1)
+			return fmt.Errorf("POST request error for %s: %w", ep.URL, err)
 		}
 		resp = r
 	}
@@ -41,11 +39,11 @@ func (ep *Endpoint) poke() {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		slog.Error("bad status", "status", resp.StatusCode)
-		os.Exit(1)
+		return fmt.Errorf("bad status %d for %s", resp.StatusCode, ep.URL)
 	}
 
 	slog.Info("Succesfully poked", "endpoint", ep.URL)
+	return nil
 }
 
 func main() {
@@ -73,7 +71,9 @@ func main() {
 	for _, endpoint := range endpoints {
 		ep := endpoint
 		wg.Go(func() {
-			ep.poke()
+			if err := ep.poke(); err != nil {
+				slog.Error("poke failed", "error", err)
+			}
 		})
 	}
 
