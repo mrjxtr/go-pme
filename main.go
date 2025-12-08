@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -12,42 +11,38 @@ import (
 )
 
 type Endpoint struct {
-	URL    string            `json:"url"`
-	Method string            `json:"method"`
-	Params map[string]string `json:"params,omitempty"`
+	URL     string            `json:"url"`
+	Method  string            `json:"method"`
+	Headers map[string]string `json:"headers,omitempty"`
 }
 
 // poke makes a request to the endpoint with the specified method and logs the result
 func (ep *Endpoint) poke() error {
-	var resp *http.Response
-
-	switch ep.Method {
-	case "GET":
-		r, err := http.Get(ep.URL)
-		if err != nil {
-			return fmt.Errorf("GET request error for %s: %w", ep.URL, err)
-		}
-		resp = r
-	case "POST":
-		// NOTE: Nil for now for quick testing
-		var body io.Reader = nil
-
-		r, err := http.Post(ep.URL, "application/json", body)
-		if err != nil {
-			return fmt.Errorf("POST request error for %s: %w", ep.URL, err)
-		}
-		resp = r
-	default:
-		return fmt.Errorf("unsupported HTTP method %q for %s", ep.Method, ep.URL)
+	req, err := http.NewRequest(ep.Method, ep.URL, nil)
+	if err != nil {
+		return fmt.Errorf(
+			"failed to create %s request for %s: %w",
+			ep.Method,
+			ep.URL,
+			err,
+		)
 	}
 
+	for key, value := range ep.Headers {
+		req.Header.Set(key, value)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("%s request error for %s: %w", ep.Method, ep.URL, err)
+	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("bad status %d for %s", resp.StatusCode, ep.URL)
 	}
 
-	slog.Info("Succesfully poked", "endpoint", ep.URL)
+	slog.Info("Succesfully poked", "endpoint", ep.URL, "status", resp.StatusCode)
 	return nil
 }
 
