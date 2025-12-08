@@ -1,18 +1,20 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 )
 
 type Endpoint struct {
-	URL    string
-	Method string
-	Params map[string]string
+	URL    string            `json:"url"`
+	Method string            `json:"method"`
+	Params map[string]string `json:"params,omitempty"`
 }
 
 func (ep *Endpoint) poke() error {
@@ -48,20 +50,28 @@ func (ep *Endpoint) poke() error {
 	return nil
 }
 
+func loadEndpointsJSON() ([]Endpoint, error) {
+	file, err := os.ReadFile("endpoints.json")
+	if err != nil {
+		return nil, err
+	}
+
+	var endpoints []Endpoint
+	if err := json.Unmarshal(file, &endpoints); err != nil {
+		return nil, err
+	}
+
+	for _, ep := range endpoints {
+		slog.Info("url found", "url", ep.URL)
+	}
+
+	return endpoints, nil
+}
+
 func main() {
-	endpoints := []Endpoint{
-		{
-			URL:    "https://randompinoy.xyz/api/v1/pinoys",
-			Method: "GET",
-		},
-		{
-			URL:    "https://randompinoy.xyz/api/v1/pinoys?results=3",
-			Method: "GET",
-		},
-		{
-			URL:    "https://randompinoy.xyz/api/v1/pinoys?results=31",
-			Method: "GET",
-		},
+	endpoints, err := loadEndpointsJSON()
+	if err != nil {
+		slog.Error("error getting endpoints", "error", err)
 	}
 
 	var wg sync.WaitGroup
