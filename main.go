@@ -8,6 +8,8 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 type Endpoint struct {
@@ -72,6 +74,11 @@ func loadEndpointsJSON(filename ...string) ([]Endpoint, error) {
 }
 
 func main() {
+	if err := godotenv.Load(); err != nil {
+		slog.Error("error loading env", "error", err)
+		os.Exit(1)
+	}
+
 	endpoints, err := loadEndpointsJSON()
 	if err != nil {
 		slog.Error("error getting endpoints", "error", err)
