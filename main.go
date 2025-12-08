@@ -80,6 +80,7 @@ func main() {
 	endpoints, err := loadEndpointsJSON()
 	if err != nil {
 		slog.Error("error getting endpoints", "error", err)
+		os.Exit(1)
 	}
 
 	var wg sync.WaitGroup
