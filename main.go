@@ -34,6 +34,8 @@ func (ep *Endpoint) poke() error {
 			return fmt.Errorf("POST request error for %s: %w", ep.URL, err)
 		}
 		resp = r
+	default:
+		return fmt.Errorf("unsupported HTTP method %q for %s", ep.Method, ep.URL)
 	}
 
 	defer resp.Body.Close()
