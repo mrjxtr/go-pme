@@ -1,13 +1,13 @@
 [
-    {
-        "name": "Endpoint 1",
-        "url": "https://randomapi.xyz/api/v1/endpoint",
-        "method": "GET"
-    },
-    {
-        "name": "Endpoint 2",
-        "url": "https://randomapi.io/api/v2/endpoint",
-        "method": "GET",
-        "headers": { "apikey": "API_KEY" }
-    }
+  {
+    "name": "Endpoint 1",
+    "url": "https://randomapi.xyz/api/v1/endpoint",
+    "method": "GET"
+  },
+  {
+    "name": "Endpoint 2",
+    "url": "https://randomapi.io/api/v2/endpoint",
+    "method": "GET",
+    "headers": { "apikey": "API_KEY" }
+  }
 ]
