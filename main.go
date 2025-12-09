@@ -13,12 +13,16 @@ import (
 )
 
 type Endpoint struct {
+	Name    string            `json:"name"`
 	URL     string            `json:"url"`
 	Method  string            `json:"method"`
 	Headers map[string]string `json:"headers,omitempty"`
 }
 
-// poke makes a request to the endpoint with the specified method and logs the result
+// poke makes a request to the endpoint with the specified method and logs the result.
+// if headers are provided, values will be replaced with environment variables
+//
+// e.g headers: { "apikey" : "API_KEY"}, make sure on your `.env` you've set your `API_KEY` variable
 func (ep *Endpoint) poke() error {
 	req, err := http.NewRequest(ep.Method, ep.URL, nil)
 	if err != nil {
@@ -31,20 +35,35 @@ func (ep *Endpoint) poke() error {
 	}
 
 	for key, value := range ep.Headers {
+		value = os.Getenv(value)
 		req.Header.Set(key, value)
 	}
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("%s request error for %s: %w", ep.Method, ep.URL, err)
+		return fmt.Errorf(
+			"%s request error for %s %s: %w",
+			ep.Method,
+			ep.Name,
+			ep.URL,
+			err,
+		)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("bad status %d for %s", resp.StatusCode, ep.URL)
+		return fmt.Errorf("bad status %d for %s %s", resp.StatusCode, ep.Name, ep.URL)
 	}
 
-	slog.Info("Succesfully poked", "endpoint", ep.URL, "status", resp.StatusCode)
+	slog.Info(
+		"Succesfully poked",
+		"name",
+		ep.Name,
+		"endpoint",
+		ep.URL,
+		"status",
+		resp.StatusCode,
+	)
 	return nil
 }
 
@@ -67,7 +86,7 @@ func loadEndpointsJSON(filename ...string) ([]Endpoint, error) {
 	}
 
 	for _, ep := range endpoints {
-		slog.Info("url found", "url", ep.URL)
+		slog.Info("endpoints found", "name", ep.Name, "url", ep.URL)
 	}
 
 	return endpoints, nil
@@ -103,5 +122,4 @@ func main() {
 	wg.Wait()
 
 	slog.Info("Time elapsed", "time", time.Since(currTime))
-	slog.Info("Poked endpoints", "count", len(endpoints))
 }
