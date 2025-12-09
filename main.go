@@ -12,11 +12,12 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// Endpoint represents a single API endpoint with its configuration.
 type Endpoint struct {
 	Name    string            `json:"name"`
 	URL     string            `json:"url"`
 	Method  string            `json:"method"`
-	Headers map[string]string `json:"headers,omitempty"`
+	Headers map[string]string `json:"headers"`
 }
 
 // poke makes a request to the endpoint with the specified method and logs the result.
