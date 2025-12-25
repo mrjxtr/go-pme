@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -18,6 +20,7 @@ type Endpoint struct {
 	URL     string            `json:"url"`
 	Method  string            `json:"method"`
 	Headers map[string]string `json:"headers"`
+	Payload map[string]string `json:"payload"`
 }
 
 // poke makes a request to the endpoint with the specified method and logs the result.
@@ -25,7 +28,29 @@ type Endpoint struct {
 //
 // e.g headers: { "apikey" : "API_KEY"}, make sure on your `.env` you've set your `API_KEY` variable
 func (ep *Endpoint) poke() error {
-	req, err := http.NewRequest(ep.Method, ep.URL, nil)
+	var body io.Reader
+
+	if ep.Payload != nil {
+		payload := ep.Payload
+
+		for key, value := range payload {
+			v := os.Getenv(value)
+			payload[key] = v
+		}
+
+		jsonData, err := json.Marshal(payload)
+		if err != nil {
+			return fmt.Errorf(
+				"failed to marshal json payload %v for %s: %w",
+				ep.Payload,
+				ep.URL,
+				err,
+			)
+		}
+		body = bytes.NewBuffer(jsonData)
+	}
+
+	req, err := http.NewRequest(ep.Method, ep.URL, body)
 	if err != nil {
 		return fmt.Errorf(
 			"failed to create %s request for %s: %w",
@@ -33,6 +58,10 @@ func (ep *Endpoint) poke() error {
 			ep.URL,
 			err,
 		)
+	}
+
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
 	}
 
 	for key, value := range ep.Headers {
@@ -60,8 +89,6 @@ func (ep *Endpoint) poke() error {
 		"Succesfully poked",
 		"name",
 		ep.Name,
-		"endpoint",
-		ep.URL,
 		"status",
 		resp.StatusCode,
 	)

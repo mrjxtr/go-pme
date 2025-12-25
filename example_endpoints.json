@@ -10,4 +10,11 @@
     "method": "GET",
     "headers": { "apikey": "API_KEY" }
   }
+  {
+    "name": "Endpoint 3",
+    "url": "https://randomapi.dev/api/v3/endpoint",
+    "method": "POST",
+    "headers": { "apikey" : "API_KEY"},
+    "payload": { "email": "EMAIL", "password": "PASSWORD"}
+  }
 ]
