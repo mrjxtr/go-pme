@@ -9,7 +9,7 @@
     "url": "https://randomapi.io/api/v2/endpoint",
     "method": "GET",
     "headers": { "apikey": "API_KEY" }
-  }
+  },
   {
     "name": "Endpoint 3",
     "url": "https://randomapi.dev/api/v3/endpoint",
