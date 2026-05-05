@@ -212,18 +212,31 @@ func main() {
 
 	slog.Info("Poking endpoints", "count", len(endpoints))
 
-	currTime := time.Now()
+	var (
+		mu   sync.Mutex
+		errs []error
+	)
+
+	start := time.Now()
 
 	for _, endpoint := range endpoints {
-		ep := endpoint
 		wg.Go(func() {
-			if err := ep.poke(ctx, client); err != nil {
-				slog.Error("poke failed", "error", err)
+			if err := endpoint.poke(ctx, client); err != nil {
+				mu.Lock()
+				errs = append(errs, err)
+				mu.Unlock()
 			}
 		})
 	}
 
 	wg.Wait()
 
-	slog.Info("Time elapsed", "time", time.Since(currTime))
+	if err := errors.Join(errs...); err != nil {
+		slog.Error("poke failed on some endpoints", "error", err)
+		slog.Info("Time elapsed", "time", time.Since(start))
+		stop()
+		os.Exit(1)
+	}
+
+	slog.Info("Time elapsed", "time", time.Since(start))
 }
