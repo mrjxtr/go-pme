@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -41,19 +42,26 @@ type Endpoint struct {
 func (ep Endpoint) poke(ctx context.Context, client *http.Client) error {
 	var body io.Reader
 
-	if ep.Payload != nil {
-		payload := ep.Payload
+	if len(ep.Payload) > 0 {
+		payload := make(map[string]string, len(ep.Payload))
 
-		for key, value := range payload {
-			v := os.Getenv(value)
+		for key, envName := range ep.Payload {
+			v, ok := os.LookupEnv(envName)
+			if !ok || v == "" {
+				return fmt.Errorf(
+					"env var %#q (referenced by payload key %#q for %#q) is unset or empty",
+					envName,
+					key,
+					ep.Name,
+				)
+			}
 			payload[key] = v
 		}
 
 		jsonData, err := json.Marshal(payload)
 		if err != nil {
 			return fmt.Errorf(
-				"failed to marshal json payload %v for %s: %w",
-				ep.Payload,
+				"failed to marshal json payload for %s: %w",
 				ep.URL,
 				err,
 			)
@@ -75,9 +83,17 @@ func (ep Endpoint) poke(ctx context.Context, client *http.Client) error {
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	for key, value := range ep.Headers {
-		value = os.Getenv(value)
-		req.Header.Set(key, value)
+	for key, envName := range ep.Headers {
+		v, ok := os.LookupEnv(envName)
+		if !ok || v == "" {
+			return fmt.Errorf(
+				"env var %#q (referenced by header key %#q for %#q) is unset or empty",
+				envName,
+				key,
+				ep.Name,
+			)
+		}
+		req.Header.Set(key, v)
 	}
 
 	resp, err := client.Do(req)
@@ -123,22 +139,63 @@ func loadEndpointsJSON(filename ...string) ([]Endpoint, error) {
 		return nil, err
 	}
 
+	var errs []error
+	for i, ep := range endpoints {
+		if ep.Name == "" {
+			errs = append(
+				errs,
+				fmt.Errorf("invalid endpoint: index %d missing %q", i, "name"),
+			)
+		}
+		if ep.URL == "" {
+			errs = append(
+				errs,
+				fmt.Errorf(
+					"invalid endpoint: %q (index %d) missing %q",
+					ep.Name,
+					i,
+					"url",
+				),
+			)
+		}
+		if ep.Method == "" {
+			errs = append(
+				errs,
+				fmt.Errorf(
+					"invalid endpoint: %q (index %d) missing %q",
+					ep.Name,
+					i,
+					"method",
+				),
+			)
+		}
+	}
+	if err := errors.Join(errs...); err != nil {
+		return nil, err
+	}
+
 	for _, ep := range endpoints {
-		slog.Info("endpoints found", "name", ep.Name, "url", ep.URL)
+		slog.Info("endpoint loaded", "name", ep.Name, "url", ep.URL)
 	}
 
 	return endpoints, nil
 }
 
 func main() {
-	if err := godotenv.Load(); err != nil {
+	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
 		slog.Error("error loading env", "error", err)
 		os.Exit(1)
 	}
 
 	endpoints, err := loadEndpointsJSON()
 	if err != nil {
-		slog.Error("error getting endpoints", "error", err)
+		if joined, ok := err.(interface{ Unwrap() []error }); ok {
+			for _, e := range joined.Unwrap() {
+				slog.Error("error loading endpoints", "error", e)
+			}
+		} else {
+			slog.Error("error loading endpoints", "error", err)
+		}
 		os.Exit(1)
 	}
 
