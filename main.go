@@ -2,13 +2,16 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -35,7 +38,7 @@ type Endpoint struct {
 // if headers are provided, values will be replaced with environment variables
 //
 // e.g headers: { "apikey" : "API_KEY"}, make sure on your `.env` you've set your `API_KEY` variable
-func (ep *Endpoint) poke() error {
+func (ep Endpoint) poke(ctx context.Context, client *http.Client) error {
 	var body io.Reader
 
 	if ep.Payload != nil {
@@ -58,7 +61,7 @@ func (ep *Endpoint) poke() error {
 		body = bytes.NewBuffer(jsonData)
 	}
 
-	req, err := http.NewRequest(ep.Method, ep.URL, body)
+	req, err := http.NewRequestWithContext(ctx, ep.Method, ep.URL, body)
 	if err != nil {
 		return fmt.Errorf(
 			"failed to create %s request for %s: %w",
@@ -77,13 +80,12 @@ func (ep *Endpoint) poke() error {
 		req.Header.Set(key, value)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf(
-			"%s request error for %s %s: %w",
+			"%s request error for %s: %w",
 			ep.Method,
 			ep.Name,
-			ep.URL,
 			err,
 		)
 	}
@@ -140,6 +142,15 @@ func main() {
 		os.Exit(1)
 	}
 
+	ctx, stop := signal.NotifyContext(
+		context.Background(),
+		os.Interrupt,
+		syscall.SIGTERM,
+	)
+	defer stop()
+
+	client := &http.Client{Timeout: DefaultClientTimeout}
+
 	var wg sync.WaitGroup
 
 	slog.Info("Poking endpoints", "count", len(endpoints))
@@ -149,7 +160,7 @@ func main() {
 	for _, endpoint := range endpoints {
 		ep := endpoint
 		wg.Go(func() {
-			if err := ep.poke(); err != nil {
+			if err := ep.poke(ctx, client); err != nil {
 				slog.Error("poke failed", "error", err)
 			}
 		})
