@@ -107,9 +107,17 @@ func (ep Endpoint) poke(ctx context.Context, client *http.Client) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("bad status %d for %s %s", resp.StatusCode, ep.Name, ep.URL)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		snippet, _ := io.ReadAll(io.LimitReader(resp.Body, DefaultErrSnipSize))
+		return fmt.Errorf(
+			"bad status %d for %s %s: %s",
+			resp.StatusCode,
+			ep.Name,
+			ep.URL,
+			bytes.TrimSpace(snippet),
+		)
 	}
+	_, _ = io.Copy(io.Discard, resp.Body)
 
 	slog.Info(
 		"Succesfully poked",
