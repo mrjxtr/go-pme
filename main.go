@@ -14,6 +14,12 @@ import (
 	"github.com/joho/godotenv"
 )
 
+const (
+	DefaultConfigFile    string        = "endpoints.json"
+	DefaultClientTimeout time.Duration = 10 * time.Second
+	DefaultErrSnipSize   int64         = 512
+)
+
 // Endpoint represents a single API endpoint with its configuration.
 type Endpoint struct {
 	Name    string            `json:"name"`
@@ -22,6 +28,8 @@ type Endpoint struct {
 	Headers map[string]string `json:"headers"`
 	Payload map[string]string `json:"payload"`
 }
+
+// TODO: Add a "App" struct
 
 // poke makes a request to the endpoint with the specified method and logs the result.
 // if headers are provided, values will be replaced with environment variables
@@ -98,7 +106,7 @@ func (ep *Endpoint) poke() error {
 // loadEndpointsJSON loads the endpoints from a specified JSON file
 // if no filename is provided, it will default to "endpoints.json"
 func loadEndpointsJSON(filename ...string) ([]Endpoint, error) {
-	jsonFile := "endpoints.json"
+	jsonFile := DefaultConfigFile
 	if len(filename) > 0 && filename[0] != "" {
 		jsonFile = filename[0]
 	}
