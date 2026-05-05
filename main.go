@@ -120,7 +120,7 @@ func (ep Endpoint) poke(ctx context.Context, client *http.Client) error {
 	_, _ = io.Copy(io.Discard, resp.Body)
 
 	slog.Info(
-		"Succesfully poked",
+		"Successfully poked",
 		"name",
 		ep.Name,
 		"status",
