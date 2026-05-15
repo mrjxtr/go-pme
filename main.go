@@ -96,6 +96,8 @@ func (ep Endpoint) poke(ctx context.Context, client *http.Client) error {
 		req.Header.Set(key, v)
 	}
 
+	now := time.Now()
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf(
@@ -119,12 +121,16 @@ func (ep Endpoint) poke(ctx context.Context, client *http.Client) error {
 	}
 	_, _ = io.Copy(io.Discard, resp.Body)
 
+	elapsed := time.Since(now)
+
 	slog.Info(
 		"Successfully poked",
 		"name",
 		ep.Name,
 		"status",
 		resp.StatusCode,
+		"time",
+		elapsed,
 	)
 	return nil
 }
@@ -241,10 +247,10 @@ func main() {
 
 	if err := errors.Join(errs...); err != nil {
 		slog.Error("poke failed on some endpoints", "error", err)
-		slog.Info("Time elapsed", "time", time.Since(start))
+		slog.Info("Total time elapsed", "time", time.Since(start))
 		stop()
 		os.Exit(1)
 	}
 
-	slog.Info("Time elapsed", "time", time.Since(start))
+	slog.Info("Total time elapsed", "time", time.Since(start))
 }
